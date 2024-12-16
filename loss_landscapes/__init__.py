@@ -1,6 +1,6 @@
-from loss_landscapes.main import point
-from loss_landscapes.main import linear_interpolation
-from loss_landscapes.main import random_line
-from loss_landscapes.main import planar_interpolation
-from loss_landscapes.main import random_plane
-from loss_landscapes.model_interface.model_wrapper import ModelWrapper, GeneralModelWrapper
+from .main import point
+from .main import linear_interpolation
+from .main import random_line
+from .main import planar_interpolation
+from .main import random_plane
+from .model_interface.model_wrapper import ModelWrapper, FilteredModelWrapper, GeneralModelWrapper
