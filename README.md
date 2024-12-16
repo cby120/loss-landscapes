@@ -1,6 +1,6 @@
 # loss-landscapes
 
-`loss-landscapes` is a PyTorch library for approximating neural network loss functions, and other related metrics, 
+`loss-landscapes` is a PyTorch library for approximating neural network loss functions, and other related metrics,
 in low-dimensional subspaces of the model's parameter space. The library makes the production of visualizations
 such as those seen in [Visualizing the Loss Landscape of Neural Nets](https://arxiv.org/abs/1712.09913v3) much
 easier, aiding the analysis of the geometry of neural network loss landscapes.
@@ -12,19 +12,47 @@ a future release.
 **NOTE: this library is in early development. Bugs are virtually a certainty, and the API is volatile. Do not use
 this library in production code. For prototyping and research, always use the newest version of the library.**
 
+## Demo
+```Python
+import torch
+from loss_landscapes import LossSurface, FilteredModelWrapper
+
+# Use inheritance to define forward behavior, e.g. reset after forward
+class MyWrapper(FilteredModelWrapper):
+    def forward(self, x):
+        y = self.model(x)
+        self.model.reset_model()
+        return y
+
+# Model definition
+class MLP(torch.nn.Module):
+    def __init__(self):
+        ...
+        self.fc1 = torch.nn.Linear(2, 2)
+        self.norm = torch.nn.BatchNorm1d()
+
+model = MLP()
+# exclude parameters named bias in parameter exploration, optional
+wrapped = MyWrapper(model, drop=["bias"])
+l = LossSurface(model=wrapped, loss_fn=torch.nn.MSELoss(), norm="filter")
+x, y = next(dataset)
+
+# calculate loss plane
+loss_plane = l.step(x, y)
+```
 
 ## 1. What is a Loss Landscape?
-Let `L : Parameters -> Real Numbers` be a loss function, which maps a point in the model parameter space to a 
+Let `L : Parameters -> Real Numbers` be a loss function, which maps a point in the model parameter space to a
 real number. For a neural network with `n` parameters, the loss function `L` takes an `n`-dimensional input. We
 can define the loss landscape as the set of all `n+1`-dimensional points `(param, L(param))`, for all points
 `param` in the parameter space. For example, the image below, reproduced from the paper by Li et al (2018), link
-above, provides a visual representation of what a loss function over a two-dimensional parameter space might look 
+above, provides a visual representation of what a loss function over a two-dimensional parameter space might look
 like:
 
 <p align="center"><img src="/img/loss-landscape.png" width="60%" align="middle"/></p>
 
-Of course, real machine learning models have a number of parameters much greater than 2, so the parameter space of 
-the model is virtually never two-dimensional. Because we can't print visualizations in more than two dimensions, 
+Of course, real machine learning models have a number of parameters much greater than 2, so the parameter space of
+the model is virtually never two-dimensional. Because we can't print visualizations in more than two dimensions,
 we cannot hope to visualize the "true" shape of the loss landscape. Instead, a number of techniques
 exist for reducing the parameter space to one or two dimensions, ranging from dimensionality reduction techniques
 like PCA, to restricting ourselves to a particular subspace of the overall parameter space. For more details,
@@ -65,7 +93,7 @@ The `loss-landscapes` library can compute any quantity of interest at a collecti
 not just loss. This is accomplished using a `Metric`: a callable object which applies a pre-determined function,
 such as a cross entropy loss with a specific set of inputs and outputs, to the model. The `loss_landscapes.model_metrics`
 package contains a number of metrics that cover common use cases, such as `Loss` (evaluates a loss
-function), `LossGradient` (evaluates the gradient of the loss w.r.t. the model parameters), 
+function), `LossGradient` (evaluates the gradient of the loss w.r.t. the model parameters),
 `PrincipalCurvatureEvaluator` (evaluates the principal curvatures of the loss function), and more.
 
 Furthermore, the user can add custom metrics by subclassing `Metric`. As an example, consider the library
@@ -95,7 +123,7 @@ class Loss(Metric):
         return self.loss_fn(model_wrapper.forward(self.inputs), self.target).item()
 ````
 
-The user may create custom `Metric`s in a similar manner. One complication is that the `Metric` class' 
+The user may create custom `Metric`s in a similar manner. One complication is that the `Metric` class'
 `__call__` method is designed to take as input a `ModelWrapper` rather than a model. This class is internal
 to the library and exists to facilitate the handling of the myriad of different models a user may pass as
 inputs to a function such as `loss_landscapes.planar_interpolation()`. It is sufficient for the user to know
@@ -105,12 +133,12 @@ that exposes a reference to the underlying model, should the user wish to carry 
 on it.
 
 In summary, the `Metric` abstraction adds a great degree of flexibility. An metric defines what quantity
-dependent on model parameters the user is interested in evaluating, and how to evaluate it. The user could define, 
+dependent on model parameters the user is interested in evaluating, and how to evaluate it. The user could define,
 for example, a metric that computes an estimate of the expected return of a reinforcement learning agent.
 
 
 ## 4. More Complex Models
-In the general case of a simple supervised learning model, as in the sections above, client code calls functions 
+In the general case of a simple supervised learning model, as in the sections above, client code calls functions
 such as `loss_landscapes.linear_interpolation` and passes as argument a PyTorch module of type `torch.nn.Module`.
 
 For more complex cases, such as when the user wants to evaluate the loss landscape as a function of a subset of
@@ -119,8 +147,8 @@ library how to interface with the model (or the agent, on a more general level).
 `ModelWrapper` object, which hides the implementation details of the model or agent. For general use, the library
 supplies the `GeneralModelWrapper` in the `loss_landscapes.model_interface.model_wrapper` module.
 
-Assume the user wishes to estimate the expected return of some RL agent which provides an `agent.act(observation)` 
-method for action selection. Then, the example from section 2 becomes as follows:  
+Assume the user wishes to estimate the expected return of some RL agent which provides an `agent.act(observation)`
+method for action selection. Then, the example from section 2 becomes as follows:
 
 ````python
 metric = ExpectedReturnMetric(env, n_samples)
@@ -136,7 +164,7 @@ A number of features are currently under development, but as of yet incomplete.
 A number of papers in recent years have shown that loss landscapes of neural networks are dominated by a
 proliferation of saddle points, that good solutions are better described as large low-loss plateaus than as
 "well-bottom" points, and that for sufficiently high-dimensional networks, a low-loss path in parameter space can
-be found between almost any arbitrary pair of minima. In the future, the `loss-landscapes` library will feature 
+be found between almost any arbitrary pair of minima. In the future, the `loss-landscapes` library will feature
 implementations of algorithms for finding such low-loss connecting paths in the loss landscape, as well as tools to
 facilitate the study of saddle points.
 
