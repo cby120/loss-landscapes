@@ -13,7 +13,9 @@ import copy
 import math
 import numpy as np
 import torch
-import torch.nn
+from torch import nn
+
+import typing as t
 
 
 class ModelParameters:
@@ -24,8 +26,8 @@ class ModelParameters:
     shaped.
     """
 
-    def __init__(self, parameters: list):
-        if not isinstance(parameters, list) and all(isinstance(p, torch.Tensor) for p in parameters):
+    def __init__(self, parameters: t.List[nn.Parameter]):
+        if not isinstance(parameters, (list, tuple)) and all(isinstance(p, torch.Tensor) for p in parameters):
             raise AttributeError('Argument to ModelParameter is not a list of torch.Tensor objects.')
 
         self.parameters = parameters
@@ -44,6 +46,21 @@ class ModelParameters:
         :return: number of elements in tensor
         """
         return sum(p.numel() for p in self.parameters)
+
+    def copy(self) -> "ModelParameters":
+        return ModelParameters(copy.deepcopy(self.parameters))
+
+    def assign(self, val: "ModelParameters") -> None:
+        if not isinstance(val, ModelParameters):
+            raise ValueError(f"Wrong type of val, require ModelParameters, got {type(val)}")
+        if len(val) != len(self):
+            raise ValueError(f"Mismatch of number of param, expected {len(self)}, got {len(val)}")
+        for idx in range(len(self)):
+            self.parameters[idx].copy_(val[idx], non_blocking=True)
+
+    def to(self, device: str) -> "ModelParameters":
+        for i in range(len(self)):
+            self.parameters[i] = self.parameters[i].to(device, non_blocking=True)
 
     def __getitem__(self, index) -> torch.nn.Parameter:
         """
@@ -286,7 +303,7 @@ def rand_u_like(example_vector: ModelParameters) -> ModelParameters:
     new_vector = []
 
     for param in example_vector:
-        new_vector.append(torch.rand(size=param.size(), dtype=example_vector[0].dtype))
+        new_vector.append(torch.rand_like(param, dtype=torch.float))
 
     return ModelParameters(new_vector)
 
@@ -302,7 +319,7 @@ def rand_n_like(example_vector: ModelParameters) -> ModelParameters:
     new_vector = []
 
     for param in example_vector:
-        new_vector.append(torch.randn(size=param.size(), dtype=example_vector[0].dtype))
+        new_vector.append(torch.randn(param, dtype=torch.float))
 
     return ModelParameters(new_vector)
 
